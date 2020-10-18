@@ -5,6 +5,7 @@ import org.graphstream.algorithm.generator.RandomGenerator;
 
 public class Main {
     public static void main(String[] args) {
+        System.setProperty("org.graphstream.ui", "swing");
         Graph graph = new SingleGraph("Random");
         Generator gen = new RandomGenerator(2);
         gen.addSink(graph);
