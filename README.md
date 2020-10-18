@@ -1,4 +1,7 @@
-Java release Version 5 is not supported
+# how to use
+download the file and unzip
+
+# error:Java release Version 5 is not supported
 
 !!! SOLUTION !!!!
 
