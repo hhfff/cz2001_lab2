@@ -1,20 +1,36 @@
-import org.graphstream.algorithm.generator.Generator;
-import org.graphstream.graph.Graph;
-import org.graphstream.graph.implementations.SingleGraph;
-import org.graphstream.algorithm.generator.RandomGenerator;
+import javafx.application.Application;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
 
-public class Main {
-    public static void main(String[] args) {
-        System.setProperty("org.graphstream.ui", "swing");
-        Graph graph = new SingleGraph("Random");
-        Generator gen = new RandomGenerator(2);
-        gen.addSink(graph);
-        gen.begin();
-        for(int i=0; i<100; i++)
-            gen.nextEvents();
-        gen.end();
-        graph.display();
-        System.out.println("hellow");
+import java.io.IOException;
 
+public class Main extends Application {
+
+    @Override
+    public void start(Stage stage) {
+        Parent root = null;
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("sz2001_main.fxml"));
+            root = (Parent) loader.load();
+            MainController controller = (MainController) loader.getController();
+            controller.setStage(stage);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Scene scene = new Scene(root);
+
+        stage.setTitle("CZ2001 lab2");
+        stage.setScene(scene);
+        stage.show();
     }
+
+    public static void main(String[] args) {
+        launch();
+    }
+
 }
