@@ -4,14 +4,14 @@ import javafx.scene.control.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.FileChooser.ExtensionFilter;
-import org.graphstream.algorithm.generator.Generator;
-import org.graphstream.algorithm.generator.RandomGenerator;
 import org.graphstream.graph.EdgeRejectedException;
 import org.graphstream.graph.Graph;
 import org.graphstream.graph.Node;
 import org.graphstream.graph.implementations.SingleGraph;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Scanner;
 
 public class MainController {
@@ -29,74 +29,120 @@ public class MainController {
 
     @FXML
     private TextArea textArea;
+    @FXML
+    private TextField kTextField;
+    @FXML
+    private ChoiceBox<String> algorithmPicker;
+    @FXML
+    private TextField hopsitalTextField;
 
 
-    private File file;
+    private File dataFile;
+    private File hospitalFile;
+
     private Stage stage;
-    private String fileName="output.txt";
+
+    private MultiSourceBFS multiSourceBFS;
+
+    private int n=1100000;
+
+
 
     public void setStage(Stage stage) {
         this.stage = stage;
     }
 
     @FXML
-    void OpenFileFolder(ActionEvent event) {
-        System.out.println("open");
+    public void initialize() {
+        algorithmPicker.getItems().add("AB algorithm");
+        algorithmPicker.getItems().add("CD algorithm");
+        algorithmPicker.getSelectionModel().selectFirst();
+        multiSourceBFS=new MultiSourceBFS();
     }
+
+
+
+
 
     @FXML
     void chooseFile(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Resource File");
         fileChooser.getExtensionFilters().addAll(
-                new ExtensionFilter("Text Files", "*.txt"),
-                new ExtensionFilter("Image Files", "*.png", "*.jpg", "*.gif"),
-                new ExtensionFilter("Audio Files", "*.wav", "*.mp3", "*.aac"),
-                new ExtensionFilter("All Files", "*.*"));
-        file=fileChooser.showOpenDialog(stage);
-        if(file!=null) textField.setText(file.getAbsolutePath());
-
+                new ExtensionFilter("Text Files", "*.txt"));
+        dataFile =fileChooser.showOpenDialog(stage);
+        if(dataFile !=null) textField.setText(dataFile.getAbsolutePath());
+    }
+    @FXML
+    void chooseHospitalFile(ActionEvent event) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Open Resource File");
+        fileChooser.getExtensionFilters().addAll(
+                new ExtensionFilter("Text Files", "*.txt"));
+        hospitalFile =fileChooser.showOpenDialog(stage);
+        if(hospitalFile !=null) hopsitalTextField.setText(hospitalFile.getAbsolutePath());
     }
 
     @FXML
-    void generateData(ActionEvent event) {
-        if(randomDataRadioButton.isSelected()){
-            saveToTxtFile("hello");
-
-
-        }else {
-            if(file==null){
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Error");
-                alert.setHeaderText("Error");
-                alert.setContentText("No file selected");
-                alert.showAndWait();
-
+    void findNearestHospital(ActionEvent event) {
+        int selectedAlgorithm=algorithmPicker.getSelectionModel().getSelectedIndex();
+        LinkedList<Integer> hospitalList=null;
+        if(hopsitalTextField.getText().length()==1){
+            hospitalList=new LinkedList<>();
+            hospitalList.add(Integer.parseInt(hopsitalTextField.getText()));
+        }
+        if(hopsitalTextField.getText().contains(",")) {
+            hospitalList=new LinkedList<>();
+            String[] split=hopsitalTextField.getText().split(",");
+            for(int i=0;i<split.length;i++) {
+                hospitalList.add(Integer.parseInt(split[i]));
             }
-            else{
+        }
+        if(hospitalList==null){
+            if(hospitalFile!=null) hospitalList= FileHelper.readHospitalFile(hospitalFile);
+            else {
+                alert("No hospital file selected or data entered");
+                return;
+            }
+        }
 
-                textArea.appendText("Process file\n");
-                readFile();
-                textArea.appendText("Process file finished\n");
+        if(randomDataRadioButton.isSelected()){
+            // random graph
+            Graph graph=RandomGraph.getRandomGraph(2,4);
+            if(selectedAlgorithm==0){
+                //a,b algorithm
+                long time=multiSourceBFS.searchRandomGraph(graph,hospitalList);
+                setRunningTime(time);
+            }else{
+                //c,d algorithm
+                System.out.println("cd algorithm");
+            }
+        }else {
+            // real data
+            ArrayList<ArrayList<Integer>> adjacencyList=null;
+            if(dataFile==null){
+                alert("No data file selected");
+                return;
+            }else{
+                adjacencyList=FileHelper.readRealNetworkData(dataFile,n);
+            }
+            if (selectedAlgorithm == 0) {
+                // ab algo
+                long time=multiSourceBFS.searchRealGraph(adjacencyList,hospitalList,n);
+                setRunningTime(time);
+            } else {
+                // cd algo
+
 
             }
         }
-//        System.setProperty("org.graphstream.ui", "swing");
-//        Graph graph = new SingleGraph("Random");
-//        Generator gen = new RandomGenerator(2);
-//        gen.addSink(graph);
-//        gen.begin();
-//        for(int i=0; i<5; i++)
-//            gen.nextEvents();
-//        gen.end();
-//        graph.display();
-//        System.out.println("hellow");
     }
+
 
     private Graph readFile(){
         try {
-            Scanner scanner = new Scanner(file);
-            Graph graph = new SingleGraph("Random");
+            Scanner scanner = new Scanner(dataFile);
+            Graph graph = new SingleGraph("real data");
             while (scanner.hasNext()){
                 String data=scanner.nextLine();
                 if(!data.contains("#")){
@@ -105,7 +151,6 @@ public class MainController {
                         Node node=graph.addNode(splited[0]);
 //                        node.setAttribute("ui.label", splited[0]);
 //                        node.setAttribute("ui.style", "shape:circle;fill-color: yellow;size: 40px; text-alignment: center;");
-
                     }
                     if(graph.getNode(splited[1])==null){
                         Node node=graph.addNode(splited[1]);
@@ -115,11 +160,9 @@ public class MainController {
                     try {
                         graph.addEdge(splited[0]+"_"+splited[1],splited[0],splited[1]);
                     }catch (EdgeRejectedException edgeRejectedException){
-                        //since is directed graph, repeat edge will get ignore, eg:0->1, 1->0(ignore)
+                        //since is undirected graph, repeat edge will get ignore, eg:0->1, 1->0(ignore)
                         //System.out.println(edgeRejectedException.getMessage());
                     }
-
-
                 }
 
             }
@@ -129,24 +172,22 @@ public class MainController {
         }
         return null;
     }
-    private void saveToTxtFile(String str){
-        FileWriter fileWriter = null;
-        try {
-            fileWriter = new FileWriter(fileName);
-            //will replace whole file
-            PrintWriter printWriter = new PrintWriter(fileWriter);
-            printWriter.print(str);
-
-            printWriter.println("Some String");
-            printWriter.printf("Product name is %s and its price is %d $", "iPhone", 1000);
-            printWriter.close();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
 
 
+
+    private void setRunningTime(long time){
+        RadioButton radioButton=(RadioButton) radioBtnGroup.getSelectedToggle();
+        textArea.appendText(algorithmPicker.getValue()+" "+ radioButton.getText()+" search time: "+(time)+ " nanoseconds\n");
+
+    }
+
+    private void alert(String message){
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setHeaderText("Error");
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
 }
